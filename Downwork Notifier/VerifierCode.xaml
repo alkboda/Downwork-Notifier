@@ -1,0 +1,17 @@
+﻿<Window x:Class="Downwork_Notifier.VerifierCode"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Downwork_Notifier"
+        mc:Ignorable="d"
+        Title="VerifierCode" Height="300" Width="300"
+        DataContext="{Binding RelativeSource={RelativeSource Mode=Self}}">
+    <Grid>
+        <StackPanel Orientation="Vertical">
+            <TextBlock>Enter you verifier code:</TextBlock>
+            <TextBox Text="{Binding OAuthVerifier}"></TextBox>
+            <Button x:Name="btnEnter">Enter code</Button>
+        </StackPanel>
+    </Grid>
+</Window>

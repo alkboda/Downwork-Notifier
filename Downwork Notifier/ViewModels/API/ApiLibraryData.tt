@@ -1,0 +1,253 @@
+﻿<#@ template debug="false" hostspecific="false" language="C#" #>
+<#@ assembly name="System.Core" #>
+<#@ assembly name="System.Runtime" #>
+<#@ assembly name="$(TargetDir)ApiLibrary.dll" #>
+<#@ assembly name="$(TargetDir)Utilities.dll" #>
+<#@ import namespace="System" #>
+<#@ import namespace="System.Linq" #>
+<#@ import namespace="System.Collections" #>
+<#@ import namespace="System.Collections.Generic" #>
+<#@ import namespace="System.Reflection" #>
+<#@ import namespace="System.Text" #>
+<#@ import namespace="Utilities.Extensions" #>
+<#@ output extension=".cs" #>
+<#
+	string msg = "";
+	System.Collections.Generic.IEnumerable<System.Type> targetClasses  = null;
+	try
+	{
+		targetClasses = typeof(ApiLibrary.ApiEntities.Base.IEntity).Assembly.GetTypes()
+			.Where(t => (t.Namespace.StartsWith("ApiLibrary.ApiModules.RequestParameters") || t.Namespace.StartsWith("ApiLibrary.ApiEntities"))
+						&& t.Namespace != "ApiLibrary.ApiEntities.Base"
+						&& t.Namespace != "ApiLibrary.ApiEntities.Converters"
+						&& t.IsClass && !t.IsAbstract
+						&& !typeof(System.Attribute).IsAssignableFrom(t)
+						&& !t.IsEnum && t.IsPublic)
+			.OrderBy(t => t.Namespace)
+			.ToArray();
+	}
+	catch(Exception ex)
+	{
+		msg = ex.GetFullMessage() + "\r\n" + ex.ToString();
+	}
+	var currentNamespace = String.Empty;
+#>
+<# if (!String.IsNullOrEmpty(msg)) { #>
+
+#region Exceptions
+/*
+<#= msg #>
+*/
+#endregion Exceptions
+
+<# } #>
+// MVVM templates for API entities
+using System;
+using System.Collections.ObjectModel;
+using System.Linq;
+using static Utilities.Extensions.TypeEx;
+
+<#
+	foreach (var entityType in targetClasses)
+	{
+		if (currentNamespace != entityType.Namespace)
+		{
+			if (!String.IsNullOrEmpty(currentNamespace))
+			{
+#>
+}
+
+<# // close namespace
+			}
+			currentNamespace = entityType.Namespace;
+#>
+namespace Downwork_Notifier.ViewModels.API<#= currentNamespace.Substring("ApiLibrary".Length) #>
+{
+<#
+		}
+		entityType.GetTypeParts(out var className, out var classGenericsString, out var whereClause);
+		var originalClassName = $"{entityType.Namespace}.{className}";
+		className += "ViewModel";
+#>
+	public partial class <#= className #><#= classGenericsString #> : BaseApiViewModel<<#= originalClassName #><#= classGenericsString #>><#= whereClause #>
+	{
+<#
+		var properties = entityType.GetProperties().ToArray();
+		var enumerableProperties = properties
+			.Where(_ => typeof(string) != _.PropertyType && typeof(IEnumerable).IsAssignableFrom(_.PropertyType))
+			.ToArray();
+		var refProperties = properties.Except(enumerableProperties).ToArray();
+		
+		StringBuilder ctorBuilder = new StringBuilder();
+		StringBuilder emptyCtorBuilder = new StringBuilder();
+		foreach (var prop in enumerableProperties)
+		{
+			var propType = prop.PropertyType;
+			var enumeratedType = propType.GetUnderlyingIEnumerableInterface(targetClasses)?.GenericTypeArguments.FirstOrDefault();
+			var isLocal = enumeratedType != null;
+			if (!isLocal)
+			{
+				enumeratedType = propType.GetUnderlyingIEnumerableInterface()?.GenericTypeArguments.FirstOrDefault();
+				emptyCtorBuilder.AppendLine($"{prop.Name} = new ObservableCollection<{enumeratedType.FullName}>();");
+				ctorBuilder.AppendLine($"{prop.Name} = new ObservableCollection<{enumeratedType.FullName}>(originalEntity.{prop.Name} ?? new {enumeratedType.FullName}[0]);");
+			}
+			else
+			{
+				enumeratedType.GetTypeParts(out var enumClassName, out _, out _);
+				emptyCtorBuilder.AppendLine($"{prop.Name} = new ObservableCollection<{enumClassName}ViewModel>();");
+				ctorBuilder.Append($"{prop.Name} = new ObservableCollection<{enumClassName}ViewModel>");
+				ctorBuilder.AppendLine($"(originalEntity.{prop.Name}?.Select(e => new {enumClassName}ViewModel(e)) ?? new {enumClassName}ViewModel[0]);");
+			}
+		}
+		foreach (var prop in refProperties)
+		{
+			var propType = prop.PropertyType;
+			bool isLocal = targetClasses.Any(_ => _.Name == propType.Name); // for generics
+			if (isLocal)
+			{
+				propType.GetTypeParts(out var propClassName, out var propGenericsString, out _);
+				propClassName += "ViewModel";
+				emptyCtorBuilder.AppendLine($"{prop.Name} = new {propClassName}{propGenericsString}();");
+				ctorBuilder.AppendLine($"{prop.Name} = new {propClassName}{propGenericsString}(originalEntity.{prop.Name});");
+			}
+		}
+#>
+		#region Constructors
+		public <#= className #>() : base()
+		{
+<# PushIndent("			"); #>
+<#= emptyCtorBuilder #>
+<# PopIndent(); #>
+		}
+		public <#= className #>(<#= originalClassName #><#= classGenericsString #> originalEntity) : base(originalEntity)
+		{
+<# PushIndent("			"); #>
+<#= ctorBuilder #>
+<# PopIndent(); #>
+		}
+		#endregion Constructors
+
+		#region Properties
+
+		#region Filling entity fields with viewmodels-fields entity values
+		public override <#= originalClassName #><#= classGenericsString #> Entity
+		{
+			get
+			{
+				var baseEntity = base.Entity;
+<#
+		foreach (var prop in refProperties)
+		{
+			if (targetClasses.Any(_ => _.Name == prop.PropertyType.Name))
+			{
+#>
+				baseEntity.<#= prop.Name #> = <#= prop.Name #>.Entity;
+<#
+			}
+		}
+#>
+<#
+		foreach (var prop in enumerableProperties)
+		{
+			var propType = prop.PropertyType;
+			var enumeratedType = propType.GetUnderlyingIEnumerableInterface(targetClasses)?.GenericTypeArguments.FirstOrDefault();
+			var isLocal = enumeratedType != null;
+			if (isLocal)
+			{
+#>
+				baseEntity.<#= prop.Name #> = <#= prop.Name #>.Select(_ => _.Entity).ToArray();
+<#
+			}
+		}
+#>
+				return baseEntity;
+			}
+		}
+		#endregion Filling entity fields with viewmodels-fields entity values
+<#
+		if (enumerableProperties.Any())
+		{
+#>
+
+		#region Collections
+<#
+			foreach (var prop in enumerableProperties)
+			{
+				var propType = prop.PropertyType;
+				var enumeratedType = propType.GetUnderlyingIEnumerableInterface(targetClasses)?.GenericTypeArguments.FirstOrDefault();
+				var isLocal = enumeratedType != null;
+				if (!isLocal)
+				{
+					enumeratedType = propType.GetUnderlyingIEnumerableInterface()?.GenericTypeArguments.FirstOrDefault();
+				}
+				var propTypeName = isLocal ? $"{enumeratedType.Name}ViewModel" : enumeratedType.FullName;
+				propTypeName = $"ObservableCollection<{propTypeName}>";
+#>
+		public <#= propTypeName #> <#= prop.Name #>
+		{
+			get { return _<#= prop.Name #>; }
+			set { SetProperty(ref _<#= prop.Name #>, value); }
+		}
+		private <#= propTypeName #> _<#= prop.Name #> = new <#= propTypeName #>();
+<#
+			}
+#>
+		#endregion Collections
+<#
+		}
+#>
+
+<#
+		if (refProperties.Any())
+		{
+#>
+		#region References
+<#
+			foreach (var prop in refProperties)
+			{
+				var propType = prop.PropertyType;
+				bool isLocal = targetClasses.Any(_ => _.Name == propType.Name); // for generics
+				propType.GetTypeParts(out var propClassName, out var propGenericsString, out _);
+				if (!isLocal)
+				{
+					if (!propType.IsGenericParameter)
+					{
+						propClassName = $"{propType.Namespace}.{propClassName}";
+					}
+#>
+		public <#= propClassName #><#= propGenericsString #> <#= prop.Name #>
+		{
+			get { return Entity.<#= prop.Name #>; }
+			set { SetProperty(Entity, e => e.<#= prop.Name #>, value); }
+		}
+<#
+				}
+				else
+				{
+					propClassName += "ViewModel";
+#>
+		public <#= propClassName #><#= propGenericsString #> <#= prop.Name #>
+		{
+			get { return _<#= prop.Name #>; }
+			set { SetProperty(ref _<#= prop.Name #>, value); }
+		}
+		private <#= propClassName #><#= propGenericsString #> _<#= prop.Name #>;
+<#
+				}
+#>
+
+<#
+			}
+#>
+		#endregion References
+
+<#
+		}
+#>
+		#endregion Properties
+	}
+
+<#
+	}
+#>
+}

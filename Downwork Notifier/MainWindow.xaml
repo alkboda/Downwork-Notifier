@@ -1,0 +1,236 @@
+﻿<Window x:Class="Downwork_Notifier.MainWindow" x:Name="__wndMain"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Downwork_Notifier"
+        xmlns:lc="clr-namespace:Downwork_Notifier.Common"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        xmlns:converters="clr-namespace:Downwork_Notifier.Common.Converters"
+        xmlns:components="clr-namespace:Downwork_Notifier.GUI.Components"
+        xmlns:props="clr-namespace:Downwork_Notifier.Properties"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="550" Width="925">
+    <Grid>
+        <Grid.Resources>
+            <ResourceDictionary>
+                <ResourceDictionary.MergedDictionaries>
+                    <ResourceDictionary Source="/GUI/Vector.xaml" />
+                </ResourceDictionary.MergedDictionaries>
+                <ObjectDataProvider x:Key="bindingHelper" ObjectInstance="{x:Static lc:BindingHelper.Instance}" />
+                <converters:DebugConverter x:Key="dbg" />
+            </ResourceDictionary>
+        </Grid.Resources>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="{x:Static props:Resources.ACCESS_TOKEN_LBL}" />
+                <TextBox Text="{Binding AccessToken, Mode=TwoWay}" />
+                <TextBlock Text="{x:Static props:Resources.ACCESS_TOKEN_SECRET_LBL}" />
+                <TextBox Text="{Binding AccessTokenSecret, Mode=TwoWay}" />
+            </StackPanel>
+            <Button Grid.Column="1" Command="{Binding Authorize}"
+                    IsEnabled="{Binding IsConnected, Converter={converters:GetConverter {x:Static lc:BindingHelper.CT_INVERT_BOOL}}, Mode=OneWay}"
+                    Content="{x:Static props:Resources.LOGIN_BTN}"/>
+        </Grid>
+
+        <TabControl Grid.Row="1" VerticalAlignment="Stretch" ScrollViewer.CanContentScroll="True"
+                    Visibility="{Binding IsConnected, Converter={converters:GetConverter {x:Static lc:BindingHelper.CT_BOOL_VISIBILITY}}, Mode=OneWay}"
+                    ItemsSource="{Binding Tabs}"
+                    SelectedIndex="{Binding TabIndex, Mode=TwoWay}">
+            <TabControl.Style>
+                <Style TargetType="TabControl">
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="TabControl">
+                                <Grid x:Name="templateRoot" ClipToBounds="true" SnapsToDevicePixels="true" KeyboardNavigation.TabNavigation="Local">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition x:Name="ColumnDefinition0"/>
+                                        <ColumnDefinition x:Name="ColumnDefinition1" Width="0"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition x:Name="RowDefinition0" Height="Auto"/>
+                                        <RowDefinition x:Name="RowDefinition1" Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Background="Transparent" Grid.Column="0" Margin="2,2,2,0" Grid.Row="0"
+                                                KeyboardNavigation.TabIndex="1" Panel.ZIndex="1"
+                                                Orientation="Horizontal">
+                                        <TabPanel x:Name="headerPanel" Background="Transparent" IsItemsHost="true" KeyboardNavigation.TabIndex="1" Panel.ZIndex="1"/>
+                                        <Button Width="45" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Padding="15,0,15,0"
+                                                ToolTip="{x:Static props:Resources.FILTER_NEW_TIP}"
+                                                Content="{StaticResource AddBlack}" Click="newTab_Click" />
+                                    </StackPanel>
+                                    <Border x:Name="contentPanel" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Background="{TemplateBinding Background}" Grid.Column="0" KeyboardNavigation.DirectionalNavigation="Contained" Grid.Row="1" KeyboardNavigation.TabIndex="2" KeyboardNavigation.TabNavigation="Local">
+                                        <ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent" Margin="{TemplateBinding Padding}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                    </Border>
+                                </Grid>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </TabControl.Style>
+            <TabControl.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding FilterName, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+                        <Button Width="15" Height="15" Margin="6,0,0,0" Click="editTab_Click"
+                                Content="{StaticResource EditBlack}" ToolTip="{x:Static props:Resources.FILTER_EDIT_TIP}" />
+                        <Button Width="15" Height="15" Margin="6,0,0,0" Click="trashTab_Click"
+                                Content="{StaticResource TrashBlack}" ToolTip="{x:Static props:Resources.FILTER_TRASH_TIP}" />
+                        <Button Width="15" Height="15" Margin="6,0,0,0" Click="removeTab_Click"
+                                Content="{StaticResource CloseBlack}" ToolTip="{x:Static props:Resources.FILTER_REMOVE_TIP}" />
+                    </StackPanel>
+                </DataTemplate>
+            </TabControl.ItemTemplate>
+            <TabControl.ContentTemplate>
+                <DataTemplate>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <!-- Main grid with jobs -->
+                        <DataGrid Grid.Row="0" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" HorizontalScrollBarVisibility="Disabled"
+                                  RowDetailsVisibilityMode="Collapsed"
+                                  ItemsSource="{Binding Jobs, Mode=OneWay}">
+                            <DataGrid.Resources>
+                                <Style TargetType="DataGridRowHeader">
+                                    <Setter Property="ToolTip" Value="{Binding Url, Mode=OneWay}" />
+                                    <EventSetter Event="Click" Handler="DataGridRowHeader_Click" />
+                                </Style>
+                                <Style TargetType="DataGridRow">
+                                    <EventSetter Event="PreviewMouseDown" Handler="DataGridRow_PreviewMouseDown" />
+                                </Style>
+                            </DataGrid.Resources>
+                            <DataGrid.RowHeaderTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="1">
+                                        <Grid Width="20" Height="12">
+                                            <Grid.Background>
+                                                <VisualBrush Visual="{StaticResource WebBlack}" Stretch="Uniform" />
+                                            </Grid.Background>
+                                        </Grid>
+                                    </Grid>
+                                </DataTemplate>
+                            </DataGrid.RowHeaderTemplate>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Binding="{Binding Title}" Width="400" Header="{x:Static props:Resources.JOB_TITLE_LBL}" />
+                                <DataGridTemplateColumn Header="{x:Static props:Resources.JOB_CREATED_DATE_LBL}" SortMemberPath="DateCreated">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding DateCreated, StringFormat='{}{0:dd-MM-yyyy HH:mm:ss}'}" />
+                                                <TextBlock Margin="6,0,0,0"
+                                                           Text="{Binding DateCreated, Converter={converters:GetConverter {x:Static local:MainWindow.CT_DATE_DIFF}}, StringFormat={}{0:[-00.00]}}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <!--<DataGridTextColumn Binding="{Binding DateCreated}" Header="Created Date" />-->
+                                <DataGridTextColumn Binding="{Binding Budget}" Header="{x:Static props:Resources.JOB_BUDGET_LBL}" />
+                                <DataGridTextColumn Binding="{Binding JobStatus}" Header="{x:Static props:Resources.JOB_STATUS_LBL}">
+                                    <DataGridTextColumn.CellStyle>
+                                        <Style TargetType="DataGridCell">
+                                            <Setter Property="Background"
+                                                    Value="{Binding JobStatus, Converter={converters:GetConverter {x:Static local:MainWindow.CT_JOB_STATUS_BRUSH}}}" />
+                                        </Style>
+                                    </DataGridTextColumn.CellStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Binding="{Binding JobType}" Header="{x:Static props:Resources.JOB_TYPE_LBL}" />
+                                <DataGridTextColumn Binding="{Binding Workload}" Header="{x:Static props:Resources.JOB_WORKLOAD_LBL}" />
+                                <DataGridTextColumn Binding="{Binding Duration}" Header="{x:Static props:Resources.JOB_DURATION_LBL}" />
+                            </DataGrid.Columns>
+                            <DataGrid.RowDetailsTemplate>
+                                <DataTemplate>
+                                    <ScrollViewer MaxHeight="300" HorizontalAlignment="Stretch"
+                                                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition />
+                                                <RowDefinition />
+                                                <RowDefinition />
+                                            </Grid.RowDefinitions>
+
+                                            <StackPanel Grid.Row="0" Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Client.Country, StringFormat={x:Static props:Resources.CLIENT_COUNTRY_SF}}" />
+                                                <TextBlock Text="{Binding Client.Feedback, StringFormat={x:Static props:Resources.CLIENT_FEEDBACK_SF}}"
+                                                           Margin="10,0,0,0" />
+                                                <TextBlock Text="{Binding Client.ReviewsCount, StringFormat={x:Static props:Resources.CLIENT_REVIEWS_COUNT_SF}}"
+                                                           Margin="0,0,10,0" />
+                                                <TextBlock Text="{Binding Client.JobsPosted, StringFormat={x:Static props:Resources.CLIENT_JOBS_POSTED_SF}}"
+                                                           Margin="10,0,0,0" />
+                                                <TextBlock Text="{Binding Client.PastHires, StringFormat={x:Static props:Resources.CLIENT_HIRES_SF}}"
+                                                           Margin="0,0,10,0" />
+                                                <TextBlock Text="{Binding Client.PaymentVerificationStatus, StringFormat={x:Static props:Resources.CLIENT_PAYMENT_STATUS_SF}}"
+                                                           Margin="10,0" />
+                                            </StackPanel>
+
+                                            <TextBlock Grid.Row="1" Margin="0,0,0,10" TextWrapping="Wrap"
+                                                       Text="{Binding Skills, Converter={converters:GetConverter {x:Static lc:BindingHelper.CT_ARRAY_STRING}}, StringFormat={x:Static props:Resources.JOB_SKILLS_SF}}" />
+
+                                            <TextBox Grid.Row="2" BorderThickness="0" Background="Transparent" IsReadOnly="True"
+                                                     TextWrapping="Wrap" HorizontalAlignment="Stretch"
+                                                     Text="{Binding Snippet, Mode=OneWay}" />
+                                        </Grid>
+                                    </ScrollViewer>
+                                </DataTemplate>
+                            </DataGrid.RowDetailsTemplate>
+                        </DataGrid>
+
+                        <!-- Expander with settings -->
+                        <Expander Grid.Row="1" ExpandDirection="Up" VerticalAlignment="Bottom"
+                                  MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}"
+                                  IsExpanded="{Binding SettingsExpanded, Mode=TwoWay}">
+                            <Expander.Header>
+                                <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" FontWeight="Bold"
+                                           Text="{x:Static props:Resources.FILTER_SETTINGS_LBL}" />
+                            </Expander.Header>
+                            <Border BorderBrush="Black" BorderThickness="2" Padding="6">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <components:FilterParametersControl Panel.ZIndex="10" Background="White"
+                                                                        Tab="{Binding DataContext, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}"
+                                                                        Categories="{Binding ElementName=__wndMain, Path=DataModel.Categories, Mode=OneWay}"
+                                                                        Skills="{Binding ElementName=__wndMain, Path=DataModel.AvailableSkills, Mode=OneWay}"
+                                                                        RefreshCommand="{Binding  ElementName=__wndMain, Path=DataModel.Refresh, Mode=OneWay}" />
+                                </ScrollViewer>
+                            </Border>
+                        </Expander>
+                    </Grid>
+                </DataTemplate>
+            </TabControl.ContentTemplate>
+        </TabControl>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="50" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <CheckBox Grid.Column="0" IsChecked="{Binding IsEnabledPopups, Mode=TwoWay}"
+                      Content="{x:Static props:Resources.POPUPS_ENABLE_LBL}" />
+            <TextBox Grid.Column="1" Width="30" ToolTip="{x:Static props:Resources.POPUPS_TIME_TIP}"
+                     Text="{Binding PopupDuration, Mode=TwoWay}" IsEnabled="{Binding IsEnabledPopups, Mode=OneWay}" />
+            <Button Grid.Column="2" Click="startSearching_Click" Margin="16,0,0,0"
+                    Content="{x:Static props:Resources.SEARCH_BTN}" />
+        </Grid>
+
+        <StatusBar Grid.Row="3">
+            <StatusBarItem Content="{Binding WindowStatus, Mode=OneWay}" />
+            <StatusBarItem Margin="10,0">
+                <TextBlock Text="{Binding CurrentTab.Jobs.Count, Mode=OneWay, StringFormat={x:Static props:Resources.JOBS_FOUND_LBL_SF}}" />
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>
