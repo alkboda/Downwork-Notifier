@@ -56,10 +56,10 @@
     <ApplicationIcon>GUI\Images\tray_active.ico</ApplicationIcon>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>F3F5C48EA5C1706E5AA190EC6789893A1F06926D</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>293BDA0AD86E39C2CD5D7B49BDD2657D65EB16DE</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>Downwork Notifier_TemporaryKey.pfx</ManifestKeyFile>
+    <ManifestKeyFile>DownworkNotifier.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <GenerateManifests>true</GenerateManifests>
@@ -311,7 +311,7 @@
     <None Include="app.config">
       <SubType>Designer</SubType>
     </None>
-    <None Include="Downwork Notifier_TemporaryKey.pfx" />
+    <None Include="DownworkNotifier.pfx" />
     <None Include="packages.config">
       <SubType>Designer</SubType>
     </None>
@@ -362,6 +362,9 @@
   <ItemGroup>
     <Resource Include="GUI\Images\tray_active.ico" />
     <Resource Include="GUI\Images\tray_deactive.ico" />
+    <Content Include="Downwork.sdf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="ViewModels\API\ApiLibraryData.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>ApiLibraryData.cs</LastGenOutput>
